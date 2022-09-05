@@ -1,0 +1,19 @@
+name: ml-zoomcamp
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.9
+  - black
+  - seaborn
+  - isort
+  - numpy
+  - scikit-learn
+  - pytest
+  - pandas
+  - flake8
+  - mypy
+  - jupyter
+  - xgboost
+  - tensorflow
+prefix: C:\Users\clamy\anaconda3\envs\ml-zoomcamp
