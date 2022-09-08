@@ -43,12 +43,14 @@ Here you need to specify the number of rows.
 
 ### Question 3
 
-Who are the most popular car manufacturers (top-3) according to the dataset?
+Who are the most frequent car manufacturers (top-3) according to the dataset?
 
 - Chevrolet, Volkswagen, Toyota
 - Chevrolet, Ford, Toyota
 - Ford, Volkswagen, Toyota
 - Chevrolet, Ford, Volkswagen
+
+> **Note**: You should rely on "Make" column in this question.
 
 ### Question 4
 
@@ -104,12 +106,14 @@ Has it changed?
 
 ## Submit the results
 
-Submit your results here: **TBA**.
+Submit your results here: https://forms.gle/vLp3mvtnrjJxCZx66
 
 If your answer doesn't match options exactly, select the closest one.
 
 
 ## Deadline
 
-The deadline for submitting is **TBA**. After that, the form will be closed.
+The deadline for submitting is 12 September 2022 (Monday), 23:00 CEST (Berlin time).
+
+After that, the form will be closed.
 
