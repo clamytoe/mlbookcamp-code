@@ -28,7 +28,7 @@ For the rest of the homework, you'll need to use only these columns:
 * `'population'`,
 * `'households'`,
 * `'median_income'`,
-* `'median_house_value'`
+* `'median_house_value'`,
 * `'ocean_proximity'`,
 
 ### Data preparation
