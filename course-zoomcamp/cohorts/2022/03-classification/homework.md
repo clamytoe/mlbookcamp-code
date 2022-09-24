@@ -81,10 +81,10 @@ Options:
 * Round it to 2 decimal digits using `round(score, 2)`
 
 Options:
-- 0.263
-- 0.00001
-- 0.101
-- 0.15555
+- 0.26
+- 0
+- 0.10
+- 0.16
 
 
 ### Question 4
