@@ -7,6 +7,17 @@
 
 ## Notes
 
+Unlike Random Forest where each decision tree trains independently, in the Gradient Boosting Trees, the models are combined sequentially where each model takes the prediction errors made my the previous model and then tries to improve the prediction. This process continues to `n` number of iterations and in the end all the predictions get combined to make final prediction.
+
+XGBoost is one of the libraries which implements the gradient boosting technique. To make use of the library, we need to install with `pip install xgboost`. To train and evaluate the model, we need to wrap our train and validation data into a special data structure from XGBoost which is called `DMatrix`. This data structure is optimized to train xgboost models faster.
+
+**Classes, functions, and methods**:
+
+- `xgb.train()`: method to train xgboost model.
+- `xgb_params`: key-value pairs of hyperparameters to train xgboost model.
+- `watchlist`: list to store training and validation accuracy to evaluate the performance of the model after each training iteration. The list takes tuple of train and validation set from DMatrix wrapper, for example, `watchlist = [(dtrain, 'train'), (dval, 'val')]`.
+- `%%capture output`: IPython magic command which captures the standard output and standard error of a cell.
+
 Add notes from the video (PRs are welcome)
 
 
@@ -20,6 +31,35 @@ Add notes from the video (PRs are welcome)
    </tr>
 </table>
 
+### Extracting results from `xgb.train(..)`
+In the video we use jupyter magic command `%%capture output` to extract the output of `xgb.train(..)` method. 
+
+Alternatively you can use the `evals_result` parameter of the `xgb.train(..)`. You can pass an empty dictionary in for this parameter and the train() method will populate it with the results. The result will be of type `OrderedDict` so we have to transform it to a dataframe. For this, `zip()` can help. Here's an example code snippet:
+```python
+evals_result = {}
+
+model = xgb.train(params=xgb_params,
+                  dtrain=dm_train,
+                  num_boost_round=200,
+                  verbose_eval=5,
+                  evals=watchlist,
+                  evals_result=evals_result)
+
+columns = ['iter', 'train_auc', 'val_auc']
+train_aucs = list(evals_result['train'].values())[0]
+val_aucs = list(evals_result['val'].values())[0]
+
+df_scores = pd.DataFrame(
+    list(zip(
+        range(1, len(train_aucs) + 1),
+        train_aucs,
+        val_aucs
+    )), columns=columns)
+
+plt.plot(df_scores.iter, df_scores.train_auc, label='train')
+plt.plot(df_scores.iter, df_scores.val_auc, label='val')
+plt.legend()
+```
 
 ## Installing XGBoost on Mac
 
