@@ -6,5 +6,6 @@ include:
   - "*.py"
 python:
   packages:
-    - xgboost
+    - pydantic
     - sklearn
+    - xgboost
