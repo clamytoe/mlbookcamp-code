@@ -1,0 +1,10 @@
+service: "service.py:svc"
+labels:
+  owner: clamytoe
+  project: mlzoomcamp_homework
+include:
+  - "service.py"
+python:
+  packages:
+    - pydantic
+    - sklearn
