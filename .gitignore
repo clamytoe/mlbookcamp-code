@@ -7,3 +7,5 @@ __pycache__/
 *.tflite
 *.csv
 *.bentomodel
+/course-zoomcamp/cohorts/2022/08-deep-learning/data/
+*.h5
