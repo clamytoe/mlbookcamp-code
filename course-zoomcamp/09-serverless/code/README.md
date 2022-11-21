@@ -106,6 +106,7 @@ docker push ${REMOTE_URI}
     * with API management capabilities
 3. Select New API
 4. Give it a name
+    * Example: clothes-classification
 5. Click Create API
 6. From Actions, select Create Resource
     * Name it: predict
@@ -115,12 +116,12 @@ docker push ${REMOTE_URI}
     * click on the check mark
     * From POST - Setup
         * select Lambda Function
-        * give it a name
+        * give it a name: clothing-classification
         * click on Save
     * At the prompt allow the permission change
         > You are about to give API Gateway permission to invoke your Lambda function:
 arn:aws:lambda:us-east-1:<ACCOUNT_NUMBER>:function:clothing-classification
-8. Click on Test
+8. Click on Test (Lightening Bolt)
 9. Move down to Request Body
     * Enter:
         * {"url": "http://bit.ly/mlbookcamp-pants"}
@@ -131,4 +132,4 @@ arn:aws:lambda:us-east-1:<ACCOUNT_NUMBER>:function:clothing-classification
     * Click on Deploy button
 11. You should have an test url now:
     * [https://<URL_ID>.execute-api.us-east-1.amazonaws.com/test](https://<URL_ID>.execute-api.us-east-1.amazonaws.com/test)
-12. Modify url in your test script and test it
+12. Modify url in your test script and test it the new test gateway api url.
