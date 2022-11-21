@@ -21,6 +21,11 @@ docker run -it --rm -p 8080:8080 clothing-model:latest
 
 [repo](https://github.com/tensorflow/tensorflow.git)
 
+### Installing aws-cli
+
+1. `pip install awscli`
+2. `aws configure`
+
 ## AWS Elastic Container Registry
 
 ```aws
@@ -47,8 +52,11 @@ aws ecr create-repository --repository-name clothing-tflite-images
 ### Get login
 
 ```aws
-aws ecr get-login-password
+export PASSWORD=`aws ecr get-login-password`
 ```
+
+> **NOTE:** `sed` command to hid password: \
+`sed 's/[0-9a-zA-Z=]\{20,\}/PASSWORD/g'`
 
 ### Log in to AWS
 
@@ -85,7 +93,7 @@ docker push ${REMOTE_URI}
 ## AWS Lambda
 
 1. Create a new function from an image.
-2. Select the newly uploaded image.
+2. Select the newly uploaded image from ECR using the *Browse images* button.
 3. Create a test for it.
 4. From Configuration, give it:
     * 1024MB of memory
