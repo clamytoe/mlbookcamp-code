@@ -10,3 +10,4 @@ __pycache__/
 /course-zoomcamp/cohorts/2022/08-deep-learning/data/
 *.h5
 .env
+/course-zoomcamp/10-kubernetes/clothing-model/
