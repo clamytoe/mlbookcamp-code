@@ -43,7 +43,7 @@ signature_def['serving_default']:
 
 ## Create docker image
 
-We now contruct our docker image with the following settings:
+We now construct our docker image with the following settings:
 
 * expose port 8500
 * create a volume of the model directory
@@ -598,6 +598,643 @@ PONG%
 ```
 
 You will see `Handling connection for 8080` on the port-fowarding terminal.
+
+## Deploy with Kubernetes
+
+Create a directory to keep all of the configuration files:
+
+```bash
+mkdir kube-config;cd $_
+```
+
+### Model deployment
+
+*model-deployment.yaml:*
+
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: tf-serving-clothing-model
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: tf-serving-clothing-model
+  template:
+    metadata:
+      labels:
+        app: tf-serving-clothing-model
+    spec:
+      containers:
+      - name: tf-serving-clothing-model
+        image: zoomcamp-10-model:xception-v4-001
+        resources:
+          limits:
+            memory: "512Mi"
+            cpu: "0.5"
+        ports:
+        - containerPort: 8500
+```
+
+Load it:
+
+```bash
+kind load docker-image zoomcamp-10-model:xception-v4-001
+Image: "" with ID "sha256:8a46b112a37a49484f0e2a3e77445fa283d229f30a5290e81c5995a9429eb69e" not yet present on node "kind-control-plane", loading...
+```
+
+Apply the config:
+
+```bash
+kubectl apply -f model-deployment.yaml
+deployment.apps/tf-serving-clothing-model created
+```
+
+Confirm it:
+
+```bash
+kubectl get pod
+NAME                                         READY   STATUS    RESTARTS      AGE
+ping-deployment-7459f4b7c7-zrjlx             1/1     Running   1 (12m ago)   18h
+tf-serving-clothing-model-548c65975d-6c6xk   1/1     Running   0             48s
+```
+
+Test it:
+
+```bash
+kubectl port-forward tf-serving-clothing-model-548c65975d-6c6xk 8500:8500
+```
+
+Second terminal:
+
+```bash
+python gateway.py
+{'dress': -1.8682903051376343, 'hat': -4.761245250701904, 'longsleeve': -2.316983461380005, 'outwear': -1.0625708103179932, 'pants': 9.887161254882812, 'shirt': -2.8124334812164307, 'shoes': -3.6662826538085938, 'shorts': 3.200361728668213, 'skirt': -2.6023378372192383, 't-shirt': -4.835046291351318}
+```
+
+### Model service
+
+*model-service.yaml:*
+
+```yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: tf-serving-clothing-model
+spec:
+  selector:
+    app: tf-serving-clothing-model
+  ports:
+  - port: 8500
+    targetPort: 8500
+```
+
+Apply the service:
+
+```bash
+kubectl apply -f model-service.yaml
+service/tf-serving-clothing-model created
+```
+
+Confirm it:
+
+```bash
+kubectl get service
+NAME                        TYPE           CLUSTER-IP     EXTERNAL-IP   PORT(S)        AGE
+kubernetes                  ClusterIP      10.96.0.1      <none>        443/TCP        19h
+ping                        LoadBalancer   10.96.65.155   <pending>     80:31287/TCP   19h
+tf-serving-clothing-model   ClusterIP      10.96.127.53   <none>        8500/TCP       12s
+```
+
+Test it:
+
+```bash
+kubectl port-forward service/tf-serving-clothing-model 8500:8500
+```
+
+From another terminal:
+
+```bash
+python gateway.py
+{'dress': -1.8682903051376343, 'hat': -4.761245250701904, 'longsleeve': -2.316983461380005, 'outwear': -1.0625708103179932, 'pants': 9.887161254882812, 'shirt': -2.8124334812164307, 'shoes': -3.6662826538085938, 'shorts': 3.200361728668213, 'skirt': -2.6023378372192383, 't-shirt': -4.835046291351318}
+```
+
+### Gateway deployment
+
+*gateway-deployment.yaml:*
+
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gateway
+spec:
+  selector:
+    matchLabels:
+      app: gateway
+  template:
+    metadata:
+      labels:
+        app: gateway
+    spec:
+      containers:
+      - name: gateway
+        image: zoomcamp-10-gateway:001
+        resources:
+          limits:
+            memory: "128Mi"
+            cpu: "100m"
+        ports:
+        - containerPort: 9696
+        env:
+          - name: TF_SERVING_HOST
+            value: tf-serving-clothing-model.default.svc.cluster.local:8500
+```
+
+Load the image:
+
+```bash
+kind load docker-image zoomcamp-10-gateway:001
+Image: "" with ID "sha256:0a5ece7262cc426012efd3d1a528cba224024f82813c7aad78cf6493027829a8" not yet present on node "kind-control-plane", loading...
+```
+
+Before deploying the gateway, lets test it.
+
+```bash
+kubectl get pod
+ping-deployment-8685fcdbdb-6z66p             1/1     Running   0          85m
+tf-serving-clothing-model-548c65975d-6c6xk   1/1     Running   0          90m
+```
+
+Let's get into the ping pod:
+
+```bash
+kubectl exec -it ping-deployment-8685fcdbdb-6z66p -- bash
+root@ping-deployment-8685fcdbdb-6z66p:/app# apt update
+root@ping-deployment-8685fcdbdb-6z66p:/app# apt install curl
+root@ping-deployment-8685fcdbdb-6z66p:/app# curl localhost:9696/ping
+PONGroot@ping-deployment-8685fcdbdb-6z66p:/app# curl ping.default.svc.cluster.local/ping
+PONGroot@ping-deployment-8685fcdbdb-6z66p:/app# apt install telnet
+root@ping-deployment-8685fcdbdb-6z66p:/app# telnet tf-serving-clothing-model.default.svc.cluster.local 8500
+Trying 10.96.127.53...
+Connected to tf-serving-clothing-model.default.svc.cluster.local.
+Escape character is '^]'.
+@@ �?
+Connection closed by foreign host.
+root@ping-deployment-8685fcdbdb-6z66p:/app# exit
+exit
+command terminated with exit code 1
+```
+
+Apply the config:
+
+```bash
+kubectl apply -f gateway-deployment.yaml
+deployment.apps/gateway created
+```
+
+Confirm it:
+
+```bash
+kubectl get pod
+NAME                                         READY   STATUS    RESTARTS   AGE
+gateway-7d46795f85-6vx5n                     1/1     Running   0          43s
+ping-deployment-8685fcdbdb-6z66p             1/1     Running   0          161m
+tf-serving-clothing-model-548c65975d-6c6xk   1/1     Running   0          166m
+```
+
+Forward the port for the gateway:
+
+```bash
+kubectl port-forward gateway-7d46795f85-6vx5n 9696:9696
+Forwarding from 127.0.0.1:9696 -> 9696
+Forwarding from [::1]:9696 -> 9696
+Handling connection for 9696
+```
+
+Test if from another terminal:
+
+``bash
+python ../test.py
+{'dress': -1.87986421585083, 'hat': -4.75631046295166, 'longsleeve': -2.359531879425049, 'outwear': -1.08926522731781, 'pants': 9.903782844543457, 'shirt': -2.826179027557373, 'shoes': -3.648310422897339, 'shorts': 3.241154909133911, 'skirt': -2.612096071243286, 't-shirt': -4.852035045623779}
+
+```
+
+If you need to look at the logs:
+
+```bash
+kubectl logs gateway-7d46795f85-6vx5n
+```
+
+### Gateway service
+
+*gateway-service.yaml:*
+
+```yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: gateway
+spec:
+  type: LoadBalancer
+  selector:
+    app: gateway
+  ports:
+  - port: 80
+    targetPort: 9696
+```
+
+Apply it:
+
+```bash
+kubectl apply -f gateway-service.yaml
+service/gateway created
+```
+
+Confirm it:
+
+```bash
+kubectl get service
+NAME                        TYPE           CLUSTER-IP     EXTERNAL-IP   PORT(S)        AGE
+gateway                     LoadBalancer   10.96.118.39   <pending>     80:31630/TCP   72s
+kubernetes                  ClusterIP      10.96.0.1      <none>        443/TCP        23h
+ping                        LoadBalancer   10.96.65.155   <pending>     80:31287/TCP   22h
+tf-serving-clothing-model   ClusterIP      10.96.127.53   <none>        8500/TCP       3h55m
+```
+
+Test it:
+
+```bash
+kubectl port-forward service/gateway 8080:80
+Forwarding from 127.0.0.1:8080 -> 9696
+Forwarding from [::1]:8080 -> 9696
+```
+
+From another terminal:
+
+**NOTE:** Don't forget to change the port setting to `8080` in the test.py script!
+
+```bash
+python ../test.py
+{'dress': -1.87986421585083, 'hat': -4.75631046295166, 'longsleeve': -2.359531879425049, 'outwear': -1.08926522731781, 'pants': 9.903782844543457, 'shirt': -2.826179027557373, 'shoes': -3.648310422897339, 'shorts': 3.241154909133911, 'skirt': -2.612096071243286, 't-shirt': -4.852035045623779}
+```
+
+## Deploying to EKS
+
+Now that we have all of the config files ready, we can move on to deploying it all to AWS EKS.
+Although this can be done from the AWS management console, it is much easier through the command line.
+Head over to [https://docs.aws.amazon.com/eks/latest/userguide/eksctl.html](https://docs.aws.amazon.com/eks/latest/userguide/eksctl.html) and download `ekxctl`.
+
+```bash
+cd ~/bin
+wget https://github.com/weaveworks/eksctl/releases/latest/download/eksctl_$(uname -s)_amd64.tar.gz
+eksctl_Linux_amd64.tar.gz    100%[=============================================>]  30.01M  4.88MB/s    in 8.3s
+
+2022-12-01 13:21:05 (3.63 MB/s) - ‘eksctl_Linux_amd64.tar.gz’ saved [31470597/31470597]
+tar xzfv eksctl_Linux_amd64.tar.gz
+rm *.gz
+```
+
+### Create EKS cluster
+
+Let's create an eks config file to handle all of the options:
+
+*eks-config.yaml:*
+
+```yaml
+apiVersion: eksctl.io/v1alpha5
+kind: ClusterConfig
+
+metadata:
+  name: mlzoomcamp-eks
+  region: us-east-1
+
+nodeGroups:
+  - name: ng-m5-xlarge
+    instanceType: m5.xlarge
+    desiredCapacity: 1
+```
+
+```bash
+eksctl create cluster -f eks-config.yaml
+2022-12-01 13:30:09 [ℹ]  eksctl version 0.122.0
+2022-12-01 13:30:09 [ℹ]  using region us-east-1
+2022-12-01 13:30:10 [ℹ]  skipping us-east-1e from selection because it doesn't support the following instance type(s): m5.xlarge
+2022-12-01 13:30:10 [ℹ]  setting availability zones to [us-east-1a us-east-1d]
+2022-12-01 13:30:10 [ℹ]  subnets for us-east-1a - public:192.168.0.0/19 private:192.168.64.0/19
+2022-12-01 13:30:10 [ℹ]  subnets for us-east-1d - public:192.168.32.0/19 private:192.168.96.0/19
+2022-12-01 13:30:11 [ℹ]  nodegroup "ng-m5-xlarge" will use "ami-0c9424a408e18bcc9" [AmazonLinux2/1.23]
+2022-12-01 13:30:11 [ℹ]  using Kubernetes version 1.23
+2022-12-01 13:30:11 [ℹ]  creating EKS cluster "mlzoomcamp-eks" in "us-east-1" region with un-managed nodes
+2022-12-01 13:30:11 [ℹ]  1 nodegroup (ng-m5-xlarge) was included (based on the include/exclude rules)
+2022-12-01 13:30:11 [ℹ]  will create a CloudFormation stack for cluster itself and 1 nodegroup stack(s)
+2022-12-01 13:30:11 [ℹ]  will create a CloudFormation stack for cluster itself and 0 managed nodegroup stack(s)
+2022-12-01 13:30:11 [ℹ]  if you encounter any issues, check CloudFormation console or try 'eksctl utils describe-stacks --region=us-east-1 --cluster=mlzoomcamp-eks'
+2022-12-01 13:30:11 [ℹ]  Kubernetes API endpoint access will use default of {publicAccess=true, privateAccess=false} for cluster "mlzoomcamp-eks" in "us-east-1"
+2022-12-01 13:30:11 [ℹ]  CloudWatch logging will not be enabled for cluster "mlzoomcamp-eks" in "us-east-1"
+2022-12-01 13:30:11 [ℹ]  you can enable it with 'eksctl utils update-cluster-logging --enable-types={SPECIFY-YOUR-LOG-TYPES-HERE (e.g. all)} --region=us-east-1 --cluster=mlzoomcamp-eks'
+2022-12-01 13:30:11 [ℹ]
+2 sequential tasks: { create cluster control plane "mlzoomcamp-eks",
+    2 sequential sub-tasks: {
+        wait for control plane to become ready,
+        create nodegroup "ng-m5-xlarge",
+    }
+}
+2022-12-01 13:30:11 [ℹ]  building cluster stack "eksctl-mlzoomcamp-eks-cluster"
+2022-12-01 13:30:11 [ℹ]  deploying stack "eksctl-mlzoomcamp-eks-cluster"
+2022-12-01 13:30:41 [ℹ]  waiting for CloudFormation stack "eksctl-mlzoomcamp-eks-cluster"
+2022-12-01 13:31:12 [ℹ]  waiting for CloudFormation stack "eksctl-mlzoomcamp-eks-cluster"
+2022-12-01 13:32:13 [ℹ]  waiting for CloudFormation stack "eksctl-mlzoomcamp-eks-cluster"
+2022-12-01 13:33:13 [ℹ]  waiting for CloudFormation stack "eksctl-mlzoomcamp-eks-cluster"
+2022-12-01 13:34:14 [ℹ]  waiting for CloudFormation stack "eksctl-mlzoomcamp-eks-cluster"
+2022-12-01 13:35:14 [ℹ]  waiting for CloudFormation stack "eksctl-mlzoomcamp-eks-cluster"
+2022-12-01 13:36:15 [ℹ]  waiting for CloudFormation stack "eksctl-mlzoomcamp-eks-cluster"
+2022-12-01 13:37:15 [ℹ]  waiting for CloudFormation stack "eksctl-mlzoomcamp-eks-cluster"
+2022-12-01 13:38:16 [ℹ]  waiting for CloudFormation stack "eksctl-mlzoomcamp-eks-cluster"
+2022-12-01 13:39:17 [ℹ]  waiting for CloudFormation stack "eksctl-mlzoomcamp-eks-cluster"
+2022-12-01 13:40:20 [ℹ]  waiting for CloudFormation stack "eksctl-mlzoomcamp-eks-cluster"
+2022-12-01 13:41:21 [ℹ]  waiting for CloudFormation stack "eksctl-mlzoomcamp-eks-cluster"
+2022-12-01 13:43:25 [ℹ]  building nodegroup stack "eksctl-mlzoomcamp-eks-nodegroup-ng-m5-xlarge"
+2022-12-01 13:43:25 [ℹ]  --nodes-min=1 was set automatically for nodegroup ng-m5-xlarge
+2022-12-01 13:43:25 [ℹ]  --nodes-max=1 was set automatically for nodegroup ng-m5-xlarge
+2022-12-01 13:43:26 [ℹ]  deploying stack "eksctl-mlzoomcamp-eks-nodegroup-ng-m5-xlarge"
+2022-12-01 13:43:26 [ℹ]  waiting for CloudFormation stack "eksctl-mlzoomcamp-eks-nodegroup-ng-m5-xlarge"
+2022-12-01 13:43:57 [ℹ]  waiting for CloudFormation stack "eksctl-mlzoomcamp-eks-nodegroup-ng-m5-xlarge"
+2022-12-01 13:44:45 [ℹ]  waiting for CloudFormation stack "eksctl-mlzoomcamp-eks-nodegroup-ng-m5-xlarge"
+2022-12-01 13:45:58 [ℹ]  waiting for CloudFormation stack "eksctl-mlzoomcamp-eks-nodegroup-ng-m5-xlarge"
+2022-12-01 13:47:34 [ℹ]  waiting for CloudFormation stack "eksctl-mlzoomcamp-eks-nodegroup-ng-m5-xlarge"
+2022-12-01 13:47:34 [ℹ]  waiting for the control plane to become ready
+2022-12-01 13:47:34 [✔]  saved kubeconfig as "/home/clamytoe/.kube/config"
+2022-12-01 13:47:34 [ℹ]  no tasks
+2022-12-01 13:47:34 [✔]  all EKS cluster resources for "mlzoomcamp-eks" have been created
+2022-12-01 13:47:35 [ℹ]  adding identity "arn:aws:iam::672763491021:role/eksctl-mlzoomcamp-eks-nodegroup-n-NodeInstanceRole-1AH8IN2NVJMX7" to auth ConfigMap
+2022-12-01 13:47:35 [ℹ]  nodegroup "ng-m5-xlarge" has 0 node(s)
+2022-12-01 13:47:35 [ℹ]  waiting for at least 1 node(s) to become ready in "ng-m5-xlarge"
+2022-12-01 13:48:08 [ℹ]  nodegroup "ng-m5-xlarge" has 1 node(s)
+2022-12-01 13:48:08 [ℹ]  node "ip-192-168-1-192.ec2.internal" is ready
+2022-12-01 13:48:10 [ℹ]  kubectl command should work with "/home/clamytoe/.kube/config", try 'kubectl get nodes'
+2022-12-01 13:48:10 [✔]  EKS cluster "mlzoomcamp-eks" in "us-east-1" region is ready
+```
+
+### Create image repository
+
+```bash
+aws ecr create-repository --repository-name mlzoomcamp-images
+{
+    "repository": {
+        "repositoryArn": "arn:aws:ecr:us-east-1:672763491021:repository/mlzoomcamp-images",
+        "registryId": "672763491021",
+        "repositoryName": "mlzoomcamp-images",
+        "repositoryUri": "672763491021.dkr.ecr.us-east-1.amazonaws.com/mlzoomcamp-images",
+        "createdAt": "2022-12-01T13:32:35-06:00",
+        "imageTagMutability": "MUTABLE",
+        "imageScanningConfiguration": {
+            "scanOnPush": false
+        },
+        "encryptionConfiguration": {
+            "encryptionType": "AES256"
+        }
+    }
+}
+```
+
+Automate the uri creation:
+
+```bash
+ACCOUNT_ID=672763491021
+REGION=us-east-1
+REGISTRY_NAME=mlzoomcamp-images
+PREFIX=${ACCOUNT_ID}.dkr.ecr.${REGION}.amazonaws.com/${REGISTRY_NAME}
+
+GATEWAY_LOCAL=zoomcamp-10-gateway:001
+GATEWAY_REMOTE=${PREFIX}:zoomcamp-10-gateway-001
+docker tag ${GATEWAY_LOCAL} ${GATEWAY_REMOTE}
+
+MODEL_LOCAL=zoomcamp-10-model:xception-v4-001
+MODEL_REMOTE=${PREFIX}:zoomcamp-10-xception-v4-001
+docker tag ${MODEL_LOCAL} ${MODEL_REMOTE}
+```
+
+Log into AWS:
+
+```bash
+aws ecr get-login-password | docker login --username AWS --password-stdin ${ACCOUNT_ID}.dkr.ecr.${REGION}.amazonaws.com
+```
+
+Push our images:
+
+```bash
+docker push ${MODEL_REMOTE}
+docker push ${GATEWAY_REMOTE}
+```
+
+Get the AWS URI's:
+
+```bash
+echo ${GATEWAY_REMOTE}
+672763491021.dkr.ecr.us-east-1.amazonaws.com/mlzoomcamp-images:zoomcamp-10-gateway-001
+(py39) ➜  bin echo ${MODEL_REMOTE}
+672763491021.dkr.ecr.us-east-1.amazonaws.com/mlzoomcamp-images:zoomcamp-10-xception-v4-001
+```
+
+Look up your node:
+
+```bash
+kubectl get nodes
+NAME                            STATUS   ROLES    AGE     VERSION
+ip-192-168-1-192.ec2.internal   Ready    <none>   5h38m   v1.23.13-eks-fb459a0
+```
+
+### Apply the EKS configurations
+
+```bash
+kubectl apply -f model-deployment.yaml
+deployment.apps/tf-serving-clothing-model created
+kubectl apply -f model-service.yaml
+service/tf-serving-clothing-model created
+kubectl get pod
+NAME                                         READY   STATUS    RESTARTS   AGE
+tf-serving-clothing-model-5f9bcd9f6d-f8glf   1/1     Running   0          2m23s
+kubectl get service
+NAME                        TYPE        CLUSTER-IP      EXTERNAL-IP   PORT(S)    AGE
+kubernetes                  ClusterIP   10.100.0.1      <none>        443/TCP    5h54m
+tf-serving-clothing-model   ClusterIP   10.100.113.48   <none>        8500/TCP   79s
+```
+
+### Apply the service deployment
+
+```bash
+kubectl port-forward service/tf-serving-clothing-model 8500:8500
+Forwarding from 127.0.0.1:8500 -> 8500
+Forwarding from [::1]:8500 -> 8500
+Handling connection for 8500
+E1201 19:35:14.321498    1151 portforward.go:391] error copying from local connection to remote stream: read tcp6 [::1]:8500->[::1]:51748: read: connection reset by peer
+```
+
+Test it:
+
+```bash
+python gateway.py
+{'dress': -1.8682893514633179, 'hat': -4.761244773864746, 'longsleeve': -2.3169822692871094, 'outwear': -1.0625706911087036, 'pants': 9.88715934753418, 'shirt': -2.8124325275421143, 'shoes': -3.6662826538085938, 'shorts': 3.2003581523895264, 'skirt': -2.6023366451263428, 't-shirt': -4.835046291351318}
+```
+
+### Apply the gateway deployment
+
+```bash
+kubectl apply -f gateway-deployment.yaml
+deployment.apps/gateway created
+kubectl apply -f gateway-service.yaml
+service/gateway created
+kubectl get pod
+NAME                                         READY   STATUS    RESTARTS   AGE
+gateway-54495d55d9-nv5kg                     1/1     Running   0          100s
+tf-serving-clothing-model-5f9bcd9f6d-f8glf   1/1     Running   0          11m
+kubectl get service
+NAME                        TYPE           CLUSTER-IP      EXTERNAL-IP
+            PORT(S)        AGE
+gateway                     LoadBalancer   10.100.95.50    a1719971a477744278268caa197051f2-249405805.us-east-1.elb.amazonaws.com   80:31806/TCP   101s
+kubernetes                  ClusterIP      10.100.0.1      <none>
+            443/TCP        6h4m
+tf-serving-clothing-model   ClusterIP      10.100.113.48   <none>
+            8500/TCP       10m
+```
+
+Lets see if we can connect to that external address:
+
+```bash
+telnet a1719971a477744278268caa197051f2-249405805.us-east-1.elb.amazonaws.com
+```
+
+Forward the ports:
+
+```bash
+kubectl port-forward service/gateway 8080:80
+Forwarding from 127.0.0.1:8080 -> 9696
+Forwarding from [::1]:8080 -> 9696
+Handling connection for 8080
+```
+
+Test it:
+
+```bash
+python test.py
+{'dress': -1.8798640966415405, 'hat': -4.75631046295166, 'longsleeve': -2.359531879425049, 'outwear': -1.0892632007598877, 'pants': 9.90378189086914, 'shirt': -2.8261773586273193, 'shoes': -3.6483097076416016, 'shorts': 3.241151809692383, 'skirt': -2.6120948791503906, 't-shirt': -4.852035999298096}
+```
+
+Add EKS URL to test script and test it:
+
+*test.py:*
+
+```python
+import requests
+
+# url = "http://localhost:9696/predict"
+# url = "http://localhost:8080/predict"
+url = "http://a1719971a477744278268caa197051f2-249405805.us-east-1.elb.amazonaws.com/predict"
+
+data = {"url": "http://bit.ly/mlbookcamp-pants"}
+
+result = requests.post(url, json=data).json()
+print(result)
+```
+
+Run it:
+
+```bash
+python test.py
+{'dress': -1.8798640966415405, 'hat': -4.75631046295166, 'longsleeve': -2.359531879425049, 'outwear': -1.0892632007598877, 'pants': 9.90378189086914, 'shirt': -2.8261773586273193, 'shoes': -3.6483097076416016, 'shorts': 3.241151809692383, 'skirt': -2.6120948791503906, 't-shirt': -4.852035999298096}
+```
+
+## AWS Dashboard
+
+You should now be able to see your cluster on your AWS EKS panel:
+
+![EKS-cluster](EKS-cluster.png)
+
+You should also be able to see your instance from the EC2 Dashboard.
+
+![EC2-instance](EC2-instance.png)
+
+You can also see your loadbalancer in the EC2 Loadbalancer dashboard:
+
+![EC2-loadbalancer](EC2-loadbalancer.png)
+
+## To stop the EKS Cluster
+
+```bash
+eksctl delete cluster --name mlzoomcamp-eks
+2022-12-01 20:05:20 [ℹ]  deleting EKS cluster "mlzoomcamp-eks"
+2022-12-01 20:05:21 [ℹ]  will drain 1 unmanaged nodegroup(s) in cluster "mlzoomcamp-eks"
+2022-12-01 20:05:21 [ℹ]  starting parallel draining, max in-flight of 1
+2022-12-01 20:05:21 [ℹ]  cordon node "ip-192-168-1-192.ec2.internal"
+2022-12-01 20:05:52 [✔]  drained all nodes: [ip-192-168-1-192.ec2.internal]
+2022-12-01 20:05:52 [ℹ]  deleted 0 Fargate profile(s)
+2022-12-01 20:05:53 [✔]  kubeconfig has been updated
+2022-12-01 20:05:53 [ℹ]  cleaning up AWS load balancers created by Kubernetes objects of Kind Service or Ingress
+2022-12-01 20:06:52 [ℹ]
+2 sequential tasks: { delete nodegroup "ng-m5-xlarge", delete cluster control plane "mlzoomcamp-eks" [async]
+}
+2022-12-01 20:06:52 [ℹ]  will delete stack "eksctl-mlzoomcamp-eks-nodegroup-ng-m5-xlarge"
+2022-12-01 20:06:52 [ℹ]  waiting for stack "eksctl-mlzoomcamp-eks-nodegroup-ng-m5-xlarge" to get deleted
+2022-12-01 20:06:53 [ℹ]  waiting for CloudFormation stack "eksctl-mlzoomcamp-eks-nodegroup-ng-m5-xlarge"
+2022-12-01 20:07:23 [ℹ]  waiting for CloudFormation stack "eksctl-mlzoomcamp-eks-nodegroup-ng-m5-xlarge"
+2022-12-01 20:07:54 [ℹ]  waiting for CloudFormation stack "eksctl-mlzoomcamp-eks-nodegroup-ng-m5-xlarge"
+2022-12-01 20:08:31 [ℹ]  waiting for CloudFormation stack "eksctl-mlzoomcamp-eks-nodegroup-ng-m5-xlarge"
+2022-12-01 20:09:43 [ℹ]  waiting for CloudFormation stack "eksctl-mlzoomcamp-eks-nodegroup-ng-m5-xlarge"
+2022-12-01 20:09:44 [ℹ]  will delete stack "eksctl-mlzoomcamp-eks-cluster"
+2022-12-01 20:09:44 [✔]  all cluster resources were deleted
+```
+
+Double check your AWS dashboards to ensure that they are gone.
+
+![EKS-no-cluster](EKS-no-cluster.png)
+
+![EC2-no-instance](EC2-no-instance.png)
+
+**NOTE:** It still is listed, but it's terminated and will eventually be removed.
+
+![EC2-no-loadbalancer](EC2-no-loadbalancer.png)
+
+![disabled-repo](disabled-repo.png)
+
+> Our image is there in a disabled state, but we probably want to remove it to avoid storage fees.
+
+## HPA NOTE
+
+Hi! Just in in case the HPA instance does not run correctly even after installing the latest version of Metrics Server from the components.yaml manifest with:
+
+```bash
+>>kubectl apply -f <https://github.com/kubernetes-sigs/metrics-server/releases/latest/download/components.yaml>
+```
+
+And the targets still appear as `<unknown>`
+
+This worked for me:
+
+```bash
+Run >>kubectl edit deploy -n kube-system metrics-server
+```
+
+And search for this line:
+
+```bash
+args:
+
+* --kubelet-preferred-address-types=InternalIP,ExternalIP,Hostname
+```
+
+Add this line in the middle:  `- --kubelet-insecure-tls`
+
+So that it stays like this:
+
+```bash
+args:
+* --kubelet-insecure-tls
+* --kubelet-preferred-address-types=InternalIP,ExternalIP,Hostname
+```
+
+Save and run again `>>kubectl get hpa`
 
 ## Sample code
 

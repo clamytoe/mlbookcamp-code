@@ -3,7 +3,7 @@ kind: ClusterConfig
 
 metadata:
   name: mlzoomcamp-eks
-  region: eu-west-1
+  region: us-east-1
 
 nodeGroups:
   - name: ng-m5-xlarge
