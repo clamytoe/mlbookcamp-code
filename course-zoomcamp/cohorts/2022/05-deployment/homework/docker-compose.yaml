@@ -1,0 +1,6 @@
+version: "3.9"
+services:
+  zoomcamp-model:
+    image: zoomcamp-model:v001
+    ports: 
+      - "9696:9696"
