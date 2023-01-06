@@ -1323,3 +1323,26 @@ docker push ${GATEWAY_REMOTE}
 eksctl create cluster -f eks-config.yaml
 eksctl delete cluster --name mlzoomcamp-eks
 ```
+
+## Clean up commands
+
+First stop all kubectl services:
+
+```bash
+kubectl get services
+kubectl delete svc [SERVICE_NAME]
+kubectl delete svc kubernetes
+```
+
+Then delete the cluster:
+
+```bash
+kind delete cluster
+```
+
+Finally youo can delete the docker image:
+
+```bash
+docker images
+docker rmi kindest/node
+```
