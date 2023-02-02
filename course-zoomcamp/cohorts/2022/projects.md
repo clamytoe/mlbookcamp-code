@@ -24,15 +24,15 @@ See more information about projects [here](../../projects/)
 * Evaluation due date: 9 January 2023, 23:00 CET (Berlin time)
 * Evaluation assignments: [long link](https://docs.google.com/spreadsheets/d/e/2PACX-1vS5i0MbxxaPFPNX8OOP2njUkfbrt3uhiIzdxY8q-RHAl4O2RKNusaUJcVAkgCWgZdDjCBQYF1h1cVxx/pubhtml) ("capstone-1" tab)
 * Submit your evaluation here: https://forms.gle/1J4hJT12GiCN4p2X8
-* Feedback: TBA
+* Feedback: [long link](https://docs.google.com/spreadsheets/d/e/2PACX-1vSvDvJu1uTSmDI0D6hnNVKdE7f447eVBxHrlJFj_iOapEarzxS0u3MAKHOQniTfIg4SrjIwT52e02XL/pubhtml) ("capstone-01" tab)
 
 ## Capstone 2 
 
-* Project due date: 23 January 2023, 23:00 CET (Berlin time)
+* Project due date: 26 January 2023, 22:00 CET (Berlin time)
 * Submit your project here: https://forms.gle/rZ44sz2oHr4J178w9
 * Evaluation due date: 30 January 2023, 23:00 CET (Berlin time)
-* Evaluation assignments: TBA
-* Submit your evaluation here: TBA
+* Evaluation assignments: [long link](https://docs.google.com/spreadsheets/d/e/2PACX-1vS5i0MbxxaPFPNX8OOP2njUkfbrt3uhiIzdxY8q-RHAl4O2RKNusaUJcVAkgCWgZdDjCBQYF1h1cVxx/pubhtml) ("capstone-2" tab)
+* Submit your evaluation here: https://forms.gle/zvQ4qYkJe8c6wFAs5
 * Feedback: TBA
 
 
